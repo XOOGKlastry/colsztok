@@ -7,6 +7,7 @@ import android.content.*;
 import android.content.pm.PackageManager;
 import android.graphics.*;
 import android.hardware.*;
+import android.hardware.Camera;
 import android.view.*;
 import android.widget.*;
 import android.text.InputType;

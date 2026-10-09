@@ -28,7 +28,7 @@ Menu → Kalibracja poziomu: cel na tej samej wysokości co środek obiektywu. Z
 
 JDK 17, Android SDK 35, Gradle 8.9, Android Gradle Plugin 8.7.3. Otwórz katalog w Android Studio lub uruchom z zainstalowanym Gradle: `gradle testDebugUnitTest lintDebug assembleDebug`. Workflow GitHub Actions wykonuje te same kroki, udostępnia APK jako artefakt i publikuje go w Releases dla tagów `v*`.
 
-Klucz podpisu wersji deweloperskiej jest zachowany w sekrecie GitHub `COLSZTOK_SIGNING_KEY`. Aktualizacje wymagają tego samego klucza i zwiększenia versionCode. Nie dodawaj klucza do repozytorium. APK debug jest przeznaczony do instalacji bezpośredniej i testów terenowych, nie do Google Play.
+APK jest testową wersją debug, podpisaną automatycznie przez narzędzia Androida. Stały prywatny klucz aktualizacji nie jest skonfigurowany. Kolejna kompilacja może wymagać odinstalowania poprzedniej aplikacji, co usuwa jej dane. **Przed zmianą wersji eksportuj pomiary i zdjęcia.** Do dystrybucji produkcyjnej skonfiguruj osobny prywatny klucz release, przechowywany poza repozytorium i artefaktami publicznymi.
 
 ## Weryfikacja
 
