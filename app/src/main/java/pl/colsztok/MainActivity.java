@@ -66,7 +66,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         e.setText(value); return e;
     }
     private void build() {
-        LinearLayout root=new LinearLayout(this); root.setOrientation(1); root.setPadding(dp(12),dp(4),dp(12),dp(8)); root.setBackgroundColor(BG); setContentView(root);
+        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(12),dp(4),dp(12),dp(8)); root.setBackgroundColor(BG); setContentView(root);
         root.setOnApplyWindowInsetsListener((v,insets)->{ root.setPadding(dp(12),insets.getSystemWindowInsetTop()+dp(4),dp(12),insets.getSystemWindowInsetBottom()+dp(8)); return insets.consumeSystemWindowInsets(); });
         LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL);
         TextView title=label("Colsztok",27); title.setTextColor(ACCENT); bar.addView(title,new LinearLayout.LayoutParams(0,-2,1));
@@ -156,7 +156,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private String date(long t) { return new SimpleDateFormat("dd.MM.yyyy HH:mm:ss",Locale.getDefault()).format(new Date(t)); }
     private void detail(int index) {
         JSONObject row=records.optJSONObject(index);
-        LinearLayout layout=new LinearLayout(this);layout.setOrientation(1);layout.setPadding(dp(16),dp(8),dp(16),dp(8));
+        LinearLayout layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(16),dp(8),dp(16),dp(8));
         TextView t=new TextView(this);t.setText(String.format(Locale.US,"%s\n%s\nWysokość: %.2f m\nOdległość pozioma: %.2f m\nPodstawa: %.2f°  •  Oprawa: %.2f°\nKalibracja: %s\nKlasa: %s",row.optString("name"),date(row.optLong("time")),row.optDouble("height_m"),row.optDouble("distance_m"),row.optDouble("base_deg"),row.optDouble("top_deg"),row.optBoolean("calibrated")?"wykonana":"brak",row.optInt("class_m")==0?"poza klasami":row.optInt("class_m")+" m"));layout.addView(t);
         Bitmap photo=BitmapFactory.decodeFile(new File(getFilesDir(),row.optString("photo")).getPath());
         if(photo!=null){ImageView image=new ImageView(this);image.setImageBitmap(photo);image.setAdjustViewBounds(true);layout.addView(image,new LinearLayout.LayoutParams(-1,dp(250)));}
@@ -192,7 +192,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             toast("Wyeksportowano.");
         }catch(Exception e){toast("Nie udało się zapisać pliku: "+e.getMessage());}
     }
-    private void menu() {new AlertDialog.Builder(this).setTitle("Colsztok").setItems(new String[]{"Instrukcja","Kalibracja poziomu","Eksport CSV / JSON","Informacje"},(d,i)->{if(i==0)help();if(i==1)calibrate();if(i==2)exports();if(i==3)new AlertDialog.Builder(this).setMessage("Colsztok 1.0.0\nPomiar offline • Android 8+\nWyniki i zdjęcia pozostają w telefonie. Odinstalowanie usuwa pamięć — wcześniej eksportuj dane.\nSiatka jest orientacyjna, korzysta z FOV aparatu.\nProjekt: github.com/XOOGKlastry/colsztok").setPositiveButton("OK",null).show();}).show();}
+    private void menu() {new AlertDialog.Builder(this).setTitle("Colsztok").setItems(new String[]{"Instrukcja","Kalibracja poziomu","Eksport CSV / JSON","Informacje"},(d,i)->{if(i==0)help();if(i==1)calibrate();if(i==2)exports();if(i==3)new AlertDialog.Builder(this).setMessage("Colsztok 1.0.1\nPomiar offline • Android 8+\nWyniki i zdjęcia pozostają w telefonie. Odinstalowanie usuwa pamięć — wcześniej eksportuj dane.\nSiatka jest orientacyjna, korzysta z FOV aparatu.\nProjekt: github.com/XOOGKlastry/colsztok").setPositiveButton("OK",null).show();}).show();}
     private void help() {
         new AlertDialog.Builder(this).setTitle("Jak mierzyć latarnie").setMessage("1. Zmierz dalmierzem odległość POZIOMĄ do osi słupa, np. 15 m. Wpisz ją w metrach. Ukośny odczyt do podstawy wymaga przeliczenia.\n\n2. Utrzymuj aparat w jednym punkcie. Wyceluj krzyżykiem w podstawę i złap kąt. Następnie przechyl telefon w górę i złap punkt oprawy, którego wysokość chcesz zmierzyć. Nie zmieniaj pozycji aparatu.\n\n3. Sprawdź wynik i zapisz. Zdjęcie z siatką oraz dane trafią do Pamięci.\n\nKolory: czerwony 6 m, pomarańczowy 8 m, żółty 9 m, zielony 12 m. Siatka pojawia się po złapaniu podstawy.\n\nKalibracja: ustaw aparat na cel na tej samej wysokości co obiektyw. Dla dokładności ±0,5 m sprawdź wyniki na znanym słupie; wykonaj 3 powtórzenia. Wysięgnik skierowany do/od Ciebie zmienia odległość do oprawy — wybierz widok z boku.\n\nNie celuj w słońce. Mierz z bezpiecznego stanowiska.").setPositiveButton("Rozumiem",(d,w)->prefs.edit().putBoolean("intro",true).apply()).show();
     }
