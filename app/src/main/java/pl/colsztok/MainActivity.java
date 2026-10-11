@@ -6,6 +6,8 @@ import android.os.*;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.hardware.*;
 import android.hardware.Camera;
 import android.view.*;
@@ -26,9 +28,12 @@ public class MainActivity extends Activity implements SensorEventListener {
     private TextureView preview;
     private FrameLayout frame;
     private Overlay overlay;
-    private TextView status, result;
+    private TextView status, result, resultHint, pitchValue, rollValue, memoryButton;
+    private final TextView[] stages=new TextView[3];
+    private RollLevel rollLevel;
+    private boolean measurementSaved;
     private EditText distance, name;
-    private Button capture, save;
+    private Button capture, save, newMeasurement;
     private SharedPreferences prefs;
     private double angle, roll, offset, fov=65, base=Double.NaN, top=Double.NaN, baseDistance, height=Double.NaN;
     private long lastSensor;
@@ -57,24 +62,45 @@ public class MainActivity extends Activity implements SensorEventListener {
     private TextView label(String text, int size) {
         TextView t=new TextView(this); t.setText(text); t.setTextSize(size); t.setTextColor(Color.WHITE); t.setPadding(dp(8),dp(4),dp(8),dp(4)); return t;
     }
+    private GradientDrawable surface(int color,int radius) {
+        GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(radius));return bg;
+    }
+    private void styleButton(Button b, boolean primary) {
+        StateListDrawable states=new StateListDrawable();
+        states.addState(new int[]{-android.R.attr.state_enabled},surface(0xff263b3f,14));
+        states.addState(new int[]{android.R.attr.state_pressed},surface(primary?0xffb4d74d:0xff365258,14));
+        states.addState(new int[]{},surface(primary?ACCENT:0xff20373c,14));
+        b.setBackgroundTintList(null);b.setBackground(states);
+        b.setTextColor(new android.content.res.ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}},new int[]{0xff819799,primary?BG:0xffedf4f0}));
+    }
     private Button button(String title, Runnable action) {
-        Button b=new Button(this); b.setText(title); b.setTextColor(BG); b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ACCENT)); b.setOnClickListener(v->action.run()); return b;
+        Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextSize(14);b.setMinHeight(dp(48));b.setMinimumWidth(0);b.setMinWidth(0);b.setPadding(dp(12),dp(8),dp(12),dp(8));styleButton(b,false);b.setOnClickListener(v->action.run());return b;
     }
     private EditText input(String hint, String value, boolean number) {
-        EditText e=new EditText(this); e.setTextColor(Color.WHITE); e.setHintTextColor(0xff9caeaf); e.setTextSize(16); e.setHint(hint); e.setSingleLine();
-        e.setInputType(number ? InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL|InputType.TYPE_NUMBER_FLAG_SIGNED : InputType.TYPE_CLASS_TEXT);
-        e.setText(value); return e;
+        EditText e=new EditText(this);e.setTextColor(Color.WHITE);e.setHintTextColor(0xff9caeaf);e.setTextSize(16);e.setHint(hint);e.setSingleLine();e.setPadding(dp(12),dp(8),dp(12),dp(8));e.setBackground(surface(0xff20373c,12));
+        e.setInputType(number?InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL|InputType.TYPE_NUMBER_FLAG_SIGNED:InputType.TYPE_CLASS_TEXT);
+        e.setText(value);return e;
+    }
+    private LinearLayout field(String title,EditText edit) {
+        LinearLayout group=new LinearLayout(this);group.setOrientation(LinearLayout.VERTICAL);
+        TextView caption=label(title,11);caption.setPadding(dp(2),dp(2),0,dp(6));caption.setTextColor(0xffb4c8c9);group.addView(caption);group.addView(edit,new LinearLayout.LayoutParams(-1,dp(46)));return group;
     }
     private void build() {
-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(12),dp(4),dp(12),dp(8)); root.setBackgroundColor(BG); setContentView(root);
-        root.setOnApplyWindowInsetsListener((v,insets)->{ root.setPadding(dp(12),insets.getSystemWindowInsetTop()+dp(4),dp(12),insets.getSystemWindowInsetBottom()+dp(8)); return insets.consumeSystemWindowInsets(); });
-        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title=label("Colsztok",27); title.setTextColor(ACCENT); bar.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        bar.addView(button("Pamięć",this::history)); bar.addView(button("⋮",this::menu)); root.addView(bar);
-        TextView intro=label("WYSOKOŚĆ OPRAWY  /  POMIAR DWÓCH KĄTÓW",11); root.addView(intro);
-        frame=new FrameLayout(this); frame.setBackgroundColor(Color.BLACK); root.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
-        preview=new TextureView(this); frame.addView(preview,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));
-        overlay=new Overlay(); frame.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(8),dp(16),dp(10));root.setBackgroundColor(BG);setContentView(root);
+        root.setOnApplyWindowInsetsListener((v,insets)->{root.setPadding(dp(16),insets.getSystemWindowInsetTop()+dp(8),dp(16),insets.getSystemWindowInsetBottom()+dp(10));return insets.consumeSystemWindowInsets();});
+        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout brand=new LinearLayout(this);brand.setOrientation(LinearLayout.VERTICAL);
+        TextView title=label("Colsztok",27);title.setTypeface(android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD);title.setTextColor(ACCENT);title.setPadding(0,0,0,0);brand.addView(title);
+        TextView subtitle=label("Wysokość latarni",12);subtitle.setPadding(0,0,0,dp(6));subtitle.setTextColor(0xffa7babc);brand.addView(subtitle);bar.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+        memoryButton=button("Pamięć · "+records.length(),this::history);bar.addView(memoryButton);
+        Button more=button("⋮",this::menu);more.setContentDescription("Menu: instrukcja, kalibracja, eksport");LinearLayout.LayoutParams moreParams=new LinearLayout.LayoutParams(dp(44),dp(48));moreParams.leftMargin=dp(8);bar.addView(more,moreParams);root.addView(bar);
+        LinearLayout progress=new LinearLayout(this);
+        for(int i=0;i<3;i++){stages[i]=label(new String[]{"1  Podstawa","2  Oprawa","3  Zapis"}[i],12);stages[i].setGravity(Gravity.CENTER);stages[i].setPadding(dp(4),dp(7),dp(4),dp(7));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);if(i>0)p.leftMargin=dp(6);progress.addView(stages[i],p);}
+        LinearLayout.LayoutParams progressParams=new LinearLayout.LayoutParams(-1,-2);progressParams.topMargin=dp(8);progressParams.bottomMargin=dp(10);root.addView(progress,progressParams);
+        frame=new FrameLayout(this);frame.setBackground(surface(Color.BLACK,18));frame.setClipToOutline(true);root.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
+        preview=new TextureView(this);frame.addView(preview,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));
+        overlay=new Overlay();frame.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
+        Button guide=button("Jak mierzyć?",this::help);guide.setTextSize(12);FrameLayout.LayoutParams guideParams=new FrameLayout.LayoutParams(-2,dp(44),Gravity.TOP|Gravity.RIGHT);guideParams.setMargins(0,dp(8),dp(8),0);frame.addView(guide,guideParams);
         frame.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->fitPreview());
         preview.setSurfaceTextureListener(new TextureView.SurfaceTextureListener(){
             public void onSurfaceTextureAvailable(SurfaceTexture s,int w,int h){openCamera();}
@@ -82,16 +108,31 @@ public class MainActivity extends Activity implements SensorEventListener {
             public boolean onSurfaceTextureDestroyed(SurfaceTexture s){closeCamera();return true;}
             public void onSurfaceTextureUpdated(SurfaceTexture s){}
         });
-        status=label("Uruchamianie czujników…",13); root.addView(status);
-        LinearLayout fields=new LinearLayout(this);
-        distance=input("Odległość pozioma [m]",prefs.getString("distance","15"),true);
-        name=input("Numer słupa / uwagi","",false);
-        fields.addView(distance,new LinearLayout.LayoutParams(0,-2,1)); fields.addView(name,new LinearLayout.LayoutParams(0,-2,1)); root.addView(fields);
-        result=label("1. Wyceluj środkiem w podstawę słupa",17); root.addView(result);
-        capture=button("1  •  ZŁAP PODSTAWĘ",this::captureAngle); root.addView(capture);
-        LinearLayout actions=new LinearLayout(this); actions.addView(button("Od nowa",this::reset),new LinearLayout.LayoutParams(0,-2,1));
-        save=button("Zapisz pomiar",this::saveMeasurement); save.setEnabled(false); actions.addView(save,new LinearLayout.LayoutParams(0,-2,1)); root.addView(actions);
-        if(!prefs.getBoolean("intro",false)) help();
+        ScrollView controlsScroll=new ScrollView(this);controlsScroll.setFillViewport(true);controlsScroll.setVerticalScrollBarEnabled(false);
+        LinearLayout controls=new LinearLayout(this);controls.setOrientation(LinearLayout.VERTICAL);controlsScroll.addView(controls);
+        // Cap controls on short screens so the camera and actions remain reachable, including with a keyboard.
+        int maxControls=(int)(getResources().getDisplayMetrics().heightPixels*.53f);
+        root.addView(controlsScroll,new LinearLayout.LayoutParams(-1,Math.min(dp(358),maxControls)));
+        LinearLayout angles=new LinearLayout(this);pitchValue=label("Celowanie —°",13);rollValue=label("Na bok —°",13);rollValue.setGravity(Gravity.RIGHT);
+        angles.addView(pitchValue,new LinearLayout.LayoutParams(0,-2,1));angles.addView(rollValue,new LinearLayout.LayoutParams(0,-2,1));controls.addView(angles);
+        rollLevel=new RollLevel();controls.addView(rollLevel,new LinearLayout.LayoutParams(-1,dp(24)));
+        status=label("Uruchamianie czujników…",12);status.setTextColor(0xffb4c8c9);controls.addView(status);
+        LinearLayout fields=new LinearLayout(this);distance=input("np. 15",prefs.getString("distance","15"),true);name=input("np. L-024","",false);
+        fields.addView(field("ODLEGŁOŚĆ POZIOMA [m]",distance),new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams nameParams=new LinearLayout.LayoutParams(0,-2,1);nameParams.leftMargin=dp(10);fields.addView(field("NUMER SŁUPA / UWAGI",name),nameParams);controls.addView(fields);
+        LinearLayout tile=new LinearLayout(this);tile.setOrientation(LinearLayout.VERTICAL);tile.setPadding(dp(12),dp(7),dp(12),dp(7));tile.setBackground(surface(0xff1a2f33,14));
+        result=label("Złap podstawę słupa",18);result.setPadding(0,0,0,0);tile.addView(result);resultHint=label("Ustaw krzyżyk na styku słupa z gruntem.",12);resultHint.setTextColor(0xffb4c8c9);resultHint.setPadding(0,dp(2),0,0);tile.addView(resultHint);
+        LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(-1,-2);tileParams.setMargins(0,dp(10),0,dp(8));controls.addView(tile,tileParams);
+        capture=button("1 · Złap podstawę",this::captureAngle);styleButton(capture,true);capture.setEnabled(false);controls.addView(capture,new LinearLayout.LayoutParams(-1,dp(48)));
+        LinearLayout actions=new LinearLayout(this);newMeasurement=button("＋ Nowy pomiar",this::requestNewMeasurement);actions.addView(newMeasurement,new LinearLayout.LayoutParams(0,dp(48),1));save=button("Zapisz pomiar",this::saveMeasurement);save.setEnabled(false);LinearLayout.LayoutParams saveParams=new LinearLayout.LayoutParams(0,dp(48),1);saveParams.leftMargin=dp(8);actions.addView(save,saveParams);LinearLayout.LayoutParams actionParams=new LinearLayout.LayoutParams(-1,-2);actionParams.topMargin=dp(8);controls.addView(actions,actionParams);
+        updateStages();
+        if(!prefs.getBoolean("guide_v2",false)){prefs.edit().putBoolean("guide_v2",true).apply();root.post(this::help);}
+    }
+    private void updateStages() {
+        int current=measurementSaved?3:Double.isNaN(base)?0:Double.isNaN(top)?1:2;
+        for(int i=0;i<3;i++){stages[i].setTextColor(i==current?BG:i<current?ACCENT:0xffa7babc);stages[i].setBackground(surface(i==current?ACCENT:0xff20373c,10));stages[i].setContentDescription(stages[i].getText()+(i==current?", bieżący etap":i<current?", gotowe":""));}
+    }
+    private void requestNewMeasurement() {
+        if(!measurementSaved&&!Double.isNaN(base))new AlertDialog.Builder(this).setTitle("Nowy pomiar?").setMessage("Bieżący pomiar nie został zapisany. Rozpocząć od nowa?").setPositiveButton("Nowy pomiar",(d,w)->reset()).setNegativeButton("Wróć",null).show();else reset();
     }
     private double number(EditText e) { return Double.parseDouble(e.getText().toString().trim().replace(',','.')); }
     private boolean stable() {
@@ -104,18 +145,22 @@ public class MainActivity extends Activity implements SensorEventListener {
         float[] g=event.values; double next=Geometry.elevation(g[0],g[1],g[2])+offset;
         roll=Math.toDegrees(Math.atan2(g[0],g[1])); angle=next;
         samples.add(next); while(samples.size()>18) samples.remove(); lastSensor=SystemClock.elapsedRealtime();
-        status.setText(String.format(Locale.US,"Kąt %+.1f°  •  Przechył %+.1f°  •  %s",angle,roll,stable()?"STABILNIE":"ustabilizuj telefon"));
-        capture.setEnabled(cameraReady && stable()); overlay.invalidate();
+        pitchValue.setText(String.format(Locale.US,"Celowanie %+.1f°",angle));
+        rollValue.setText(String.format(Locale.US,"Na bok %+.1f°",roll));rollValue.setTextColor(Math.abs(roll)>3?0xffffa18c:ACCENT);
+        String message=!cameraReady?"Aparat niedostępny — sprawdź uprawnienia.":Math.abs(roll)>3?"Wyprostuj na bok — dopuszczalne ±3°.":stable()?"● Stabilnie — możesz złapać punkt.":"Poczekaj — utrzymaj obiektyw nieruchomo.";
+        status.setText(message);status.setTextColor(stable()&&cameraReady?ACCENT:0xffb4c8c9);
+        capture.setEnabled(!measurementSaved && cameraReady && stable());rollLevel.invalidate();overlay.invalidate();
     }
     @Override public void onAccuracyChanged(Sensor s,int accuracy) {}
     private void captureAngle() {
+        if(measurementSaved)return;
         if(!cameraReady || !stable()) { toast("Utrzymaj telefon nieruchomo i pionowo przez około sekundę."); return; }
         try {
             if(Double.isNaN(base)) {
                 baseDistance=number(distance);
                 if(!Double.isFinite(baseDistance)||baseDistance<1||baseDistance>200) throw new IllegalArgumentException("Wpisz odległość od 1 do 200 m.");
                 base=mean(); distance.setEnabled(false); top=Double.NaN;
-                result.setText("2. Bez zmiany stanowiska wyceluj w oprawę"); capture.setText("2  •  ZŁAP OPRAWĘ");
+                result.setText("Teraz wyceluj w oprawę");resultHint.setText(String.format(Locale.US,"Podstawa %+.1f° · aparat zostaje w tym samym miejscu.",base));capture.setText("2 · Złap oprawę");updateStages();
             } else {
                 double candidate=mean(); double measured=Geometry.height(baseDistance,base,candidate);
                 if(measured>50 || measured<.5) throw new IllegalArgumentException("Wynik poza zakresem 0,5–50 m. Sprawdź celowanie.");
@@ -125,13 +170,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                     Bitmap p=preview.getBitmap(); if(p!=null){canvas.drawBitmap(p,preview.getLeft(),preview.getTop(),null);p.recycle();} overlay.draw(canvas); shot=b;
                 } catch(RuntimeException e) { toast("Pomiar gotowy, zdjęcie niedostępne."); }
                 int standard=Geometry.standard(height);
-                result.setText(String.format(Locale.US,"%.2f m  •  %s",height,standard==0?"poza klasami ±0,5 m":"klasa "+standard+" m"));
-                capture.setText("POWTÓRZ OPRAWĘ"); save.setEnabled(true);
+                result.setText(String.format(Locale.US,"%.2f m",height));result.setTextSize(28);result.setTextColor(ACCENT);
+                resultHint.setText((standard==0?"Poza klasami ±0,5 m":"Klasa "+standard+" m")+" · uzupełnij numer i zapisz.");
+                capture.setText("Powtórz celowanie w oprawę");styleButton(capture,false);save.setEnabled(true);styleButton(save,true);updateStages();
             }
         } catch(Exception e) { toast(e instanceof NumberFormatException?"Wpisz poprawną odległość w metrach.":e.getMessage()); }
     }
     private void saveMeasurement() {
-        if(!Double.isFinite(height)) return;
+        if(measurementSaved||!Double.isFinite(height)) return;
         String photo="";
         try {
             long now=System.currentTimeMillis();
@@ -140,12 +186,13 @@ public class MainActivity extends Activity implements SensorEventListener {
             row.put("distance_m",baseDistance); row.put("base_deg",base); row.put("top_deg",top); row.put("offset_deg",offset); row.put("class_m",Geometry.standard(height)); row.put("calibrated",capturedCalibrated); row.put("photo",photo);
             JSONArray updated=new JSONArray(records.toString()); updated.put(row);
             if(!prefs.edit().putString("records",updated.toString()).putString("distance",distance.getText().toString()).commit()) throw new IOException("Brak miejsca na zapis.");
-            records=updated; toast("Zapisano pomiar #"+records.length()); name.setText(""); reset();
+            records=updated;measurementSaved=true;memoryButton.setText("Pamięć · "+records.length());save.setText("Zapisano ✓");save.setEnabled(false);capture.setEnabled(false);capture.setText("Pomiar zapisany w pamięci");name.setEnabled(false);resultHint.setText(photo.isEmpty()?"Zapisano dane bez zdjęcia · wybierz Nowy pomiar.":"Zapisano ze zdjęciem · wybierz Nowy pomiar.");styleButton(newMeasurement,true);updateStages();toast("Zapisano pomiar #"+records.length());
         } catch(Exception e) { if(!photo.isEmpty())deleteFile(photo); toast("Nie zapisano: "+e.getMessage()); }
     }
     private void reset() {
-        base=top=height=Double.NaN; if(shot!=null){shot.recycle();shot=null;}
-        distance.setEnabled(true); save.setEnabled(false); capture.setText("1  •  ZŁAP PODSTAWĘ"); result.setText("1. Wyceluj środkiem w podstawę słupa"); overlay.invalidate();
+        base=top=height=Double.NaN;measurementSaved=false;if(shot!=null){shot.recycle();shot=null;}
+        distance.setEnabled(true);name.setEnabled(true);name.setText("");save.setText("Zapisz pomiar");save.setEnabled(false);styleButton(save,false);styleButton(capture,true);styleButton(newMeasurement,false);
+        capture.setText("1 · Złap podstawę");capture.setEnabled(cameraReady&&stable());result.setText("Złap podstawę słupa");result.setTextSize(18);result.setTextColor(Color.WHITE);resultHint.setText("Ustaw krzyżyk na styku słupa z gruntem.");updateStages();overlay.invalidate();
     }
     private void history() {
         if(records.length()==0){toast("Pamięć jest pusta. Zapisz pierwszy pomiar.");return;}
@@ -168,7 +215,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
     private void delete(int index) {
         JSONArray next=new JSONArray();for(int i=0;i<records.length();i++)if(i!=index)next.put(records.opt(i));
-        if(prefs.edit().putString("records",next.toString()).commit()){deleteFile(records.optJSONObject(index).optString("photo"));records=next;toast("Usunięto.");}else toast("Nie udało się usunąć.");
+        if(prefs.edit().putString("records",next.toString()).commit()){deleteFile(records.optJSONObject(index).optString("photo"));records=next;memoryButton.setText("Pamięć · "+records.length());toast("Usunięto.");}else toast("Nie udało się usunąć.");
     }
     private String cell(String text) { return "\""+text.replace("\"","\"\"")+"\""; }
     private void exports() {
@@ -192,10 +239,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             toast("Wyeksportowano.");
         }catch(Exception e){toast("Nie udało się zapisać pliku: "+e.getMessage());}
     }
-    private void menu() {new AlertDialog.Builder(this).setTitle("Colsztok").setItems(new String[]{"Instrukcja","Kalibracja poziomu","Eksport CSV / JSON","Informacje"},(d,i)->{if(i==0)help();if(i==1)calibrate();if(i==2)exports();if(i==3)new AlertDialog.Builder(this).setMessage("Colsztok 1.0.1\nPomiar offline • Android 8+\nWyniki i zdjęcia pozostają w telefonie. Odinstalowanie usuwa pamięć — wcześniej eksportuj dane.\nSiatka jest orientacyjna, korzysta z FOV aparatu.\nProjekt: github.com/XOOGKlastry/colsztok").setPositiveButton("OK",null).show();}).show();}
-    private void help() {
-        new AlertDialog.Builder(this).setTitle("Jak mierzyć latarnie").setMessage("1. Zmierz dalmierzem odległość POZIOMĄ do osi słupa, np. 15 m. Wpisz ją w metrach. Ukośny odczyt do podstawy wymaga przeliczenia.\n\n2. Utrzymuj aparat w jednym punkcie. Wyceluj krzyżykiem w podstawę i złap kąt. Następnie przechyl telefon w górę i złap punkt oprawy, którego wysokość chcesz zmierzyć. Nie zmieniaj pozycji aparatu.\n\n3. Sprawdź wynik i zapisz. Zdjęcie z siatką oraz dane trafią do Pamięci.\n\nKolory: czerwony 6 m, pomarańczowy 8 m, żółty 9 m, zielony 12 m. Siatka pojawia się po złapaniu podstawy.\n\nKalibracja: ustaw aparat na cel na tej samej wysokości co obiektyw. Dla dokładności ±0,5 m sprawdź wyniki na znanym słupie; wykonaj 3 powtórzenia. Wysięgnik skierowany do/od Ciebie zmienia odległość do oprawy — wybierz widok z boku.\n\nNie celuj w słońce. Mierz z bezpiecznego stanowiska.").setPositiveButton("Rozumiem",(d,w)->prefs.edit().putBoolean("intro",true).apply()).show();
-    }
+    private void menu() {new AlertDialog.Builder(this).setTitle("Colsztok").setItems(new String[]{"Instrukcja","Kalibracja poziomu","Eksport CSV / JSON","Informacje"},(d,i)->{if(i==0)help();if(i==1)calibrate();if(i==2)exports();if(i==3)new AlertDialog.Builder(this).setMessage("Colsztok 1.1.0\nPomiar offline • Android 8+\nWyniki i zdjęcia pozostają w telefonie. Odinstalowanie usuwa pamięć — wcześniej eksportuj dane.\nSiatka jest orientacyjna, korzysta z FOV aparatu.\nProjekt: github.com/XOOGKlastry/colsztok").setPositiveButton("OK",null).show();}).show();}
+    private void help() {startActivity(new Intent(this,GuideActivity.class));}
     private void calibrate() {
         new AlertDialog.Builder(this).setTitle("Kalibracja kąta 0°").setMessage("Wyceluj krzyżykiem w punkt dokładnie na wysokości środka obiektywu. Telefon pionowo, aparat nieruchomo. Kalibracja zeruje błąd kąta; nie kalibruje FOV siatki.\n\nZapis usunie bieżący, niezapisany pomiar.").setPositiveButton("Ustaw zero",(d,w)->{
             if(!stable()||!cameraReady){toast("Najpierw ustabilizuj aparat.");return;}
@@ -234,6 +279,15 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override protected void onDestroy(){if(shot!=null)shot.recycle();super.onDestroy();}
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_LONG).show();}
 
+    private class RollLevel extends View {
+        final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        RollLevel(){super(MainActivity.this);setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);}
+        @Override protected void onDraw(Canvas c){float cx=getWidth()/2f,cy=getHeight()/2f,span=getWidth()*.36f;
+            p.setStrokeWidth(dp(3));p.setStrokeCap(Paint.Cap.ROUND);p.setColor(0xff365258);c.drawLine(cx-span,cy,cx+span,cy,p);
+            p.setColor(0xff788e90);p.setStrokeWidth(dp(1));for(int i=-1;i<=1;i++)c.drawLine(cx+i*span*.3f,cy-dp(5),cx+i*span*.3f,cy+dp(5),p);
+            p.setColor(Math.abs(roll)<=3?ACCENT:0xffffa18c);float x=cx+(float)Math.max(-10,Math.min(10,roll))/10*span;c.drawCircle(x,cy,dp(5),p);
+        }
+    }
     private class Overlay extends View {
         private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
         Overlay(){super(MainActivity.this);setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);}
@@ -242,7 +296,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             paint.setStrokeWidth(dp(2));paint.setColor(Color.WHITE);c.drawLine(cx-dp(17),cy,cx+dp(17),cy,paint);c.drawLine(cx,cy-dp(17),cx,cy+dp(17),paint);
             paint.setStyle(Paint.Style.STROKE);c.drawCircle(cx,cy,dp(25),paint);paint.setStyle(Paint.Style.FILL);
             paint.setTextSize(dp(12));paint.setShadowLayer(dp(3),0,0,Color.BLACK);
-            c.drawText(Double.isNaN(base)?"CELUJ W PODSTAWĘ":"CELUJ W OPRAWĘ",dp(14),dp(25),paint);
+            c.drawText(measurementSaved?"ZAPISANO":Double.isNaN(base)?"PODSTAWA":"OPRAWA",dp(14),dp(31),paint);
             if(!Double.isNaN(base)&&Math.abs(roll)<3&&cameraReady){
                 c.save();c.clipRect(preview.getLeft(),preview.getTop(),preview.getRight(),preview.getBottom());
                 int[] heights={6,8,9,12};int[] colors={0xffff0000,0xffffa500,0xffffff00,0xff00ff00};
