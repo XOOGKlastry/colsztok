@@ -36,7 +36,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Button capture, save, newMeasurement;
     private SharedPreferences prefs;
     private double angle, roll, offset, fov=65, base=Double.NaN, top=Double.NaN, baseDistance, height=Double.NaN;
-    private long lastSensor;
+    private long lastSensor, lastUiUpdate;
     private final ArrayDeque<Double> samples=new ArrayDeque<>();
     private boolean cameraReady, active, started, capturedCalibrated;
     private JSONArray records;
@@ -145,6 +145,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         float[] g=event.values; double next=Geometry.elevation(g[0],g[1],g[2])+offset;
         roll=Math.toDegrees(Math.atan2(g[0],g[1])); angle=next;
         samples.add(next); while(samples.size()>18) samples.remove(); lastSensor=SystemClock.elapsedRealtime();
+        if(lastSensor-lastUiUpdate<120)return;
+        lastUiUpdate=lastSensor;
         pitchValue.setText(String.format(Locale.US,"Celowanie %+.1f°",angle));
         rollValue.setText(String.format(Locale.US,"Na bok %+.1f°",roll));rollValue.setTextColor(Math.abs(roll)>3?0xffffa18c:ACCENT);
         String message=!cameraReady?"Aparat niedostępny — sprawdź uprawnienia.":Math.abs(roll)>3?"Wyprostuj na bok — dopuszczalne ±3°.":stable()?"● Stabilnie — możesz złapać punkt.":"Poczekaj — utrzymaj obiektyw nieruchomo.";
@@ -253,6 +255,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         if(frame==null||frame.getWidth()==0)return;
         float aspect=(float)previewH/previewW;int w=frame.getWidth(),h=Math.round(w/aspect);
         if(h>frame.getHeight()){h=frame.getHeight();w=Math.round(h*aspect);}
+        if(preview.getLayoutParams().width==w && preview.getLayoutParams().height==h)return;
         FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(w,h,Gravity.CENTER); preview.setLayoutParams(p);
     }
     private void openCamera() {

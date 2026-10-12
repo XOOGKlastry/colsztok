@@ -64,9 +64,7 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            gradle connectedDebugAndroidTest --no-daemon
-            adb pull /sdcard/Android/data/pl.colsztok/files/screenshots app/build/reports/screenshots
+          script: bash .github/scripts/ui-check.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
