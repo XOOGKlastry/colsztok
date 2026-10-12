@@ -10,6 +10,10 @@ Przycisk **Jak mierzyć?** otwiera cztery ilustrowane kroki z rysunkiem telefonu
 
 Po zapisie wysokość pozostaje widoczna z potwierdzeniem. **Nowy pomiar** czyści celowanie i numer słupa, pozostawiając odległość do sprawdzenia na następnym stanowisku. Chroni niezapisany pomiar pytaniem o rozpoczęcie od nowa.
 
+<img src="docs/ekran-pomiaru.png" width="320" alt="Ekran Colsztok: etapy pomiaru, aparat, poziomica i przycisk Nowy pomiar">
+
+Zrzut z emulatora Androida 15; podgląd przedstawia testową scenę aparatu. [Zobacz ilustrowaną instrukcję celowania w oprawę](docs/instrukcja-oprawa.png).
+
 ## Pobierz na telefon
 
 [Pobierz Colsztok.apk](https://github.com/XOOGKlastry/colsztok/releases/latest/download/Colsztok.apk). Otwórz APK na telefonie i zezwól przeglądarce na instalację. Po instalacji udziel aplikacji dostępu do aparatu.
