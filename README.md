@@ -2,6 +2,14 @@
 
 Natywna aplikacja Android do pomiaru wysokości latarni aparatem i czujnikiem pochylenia. Interfejs po polsku, praca offline, bez reklam, kont i usług zewnętrznych. Dla Samsung Galaxy S22+ i innych telefonów z Androidem 8+ oraz czujnikiem grawitacji lub akcelerometrem.
 
+## Wersja 1.1 — prowadzenie przez pomiar
+
+Nowy ekran pokazuje etapy **Podstawa → Oprawa → Zapis**. Wskaźnik **Celowanie** to kąt aparatu w górę lub w dół: w trakcie pomiaru ma się zmieniać. Wskaźnik **Na bok** i poziomica pokazują oddzielny przechył boczny: powinien być bliski 0°, przy wartości ponad ±3° pomiar jest blokowany.
+
+Przycisk **Jak mierzyć?** otwiera cztery ilustrowane kroki z rysunkiem telefonu, jego obiektywu i kierunku celowania. Obiektyw pozostaje możliwie w jednym punkcie podczas przejścia od podstawy do oprawy. Instrukcja jest dostępna offline.
+
+Po zapisie wysokość pozostaje widoczna z potwierdzeniem. **Nowy pomiar** czyści celowanie i numer słupa, pozostawiając odległość do sprawdzenia na następnym stanowisku. Chroni niezapisany pomiar pytaniem o rozpoczęcie od nowa.
+
 ## Pobierz na telefon
 
 [Pobierz Colsztok.apk](https://github.com/XOOGKlastry/colsztok/releases/latest/download/Colsztok.apk). Otwórz APK na telefonie i zezwól przeglądarce na instalację. Po instalacji udziel aplikacji dostępu do aparatu.
@@ -33,5 +41,7 @@ APK jest testową wersją debug, podpisaną automatycznie przez narzędzia Andro
 ## Weryfikacja
 
 Testy jednostkowe sprawdzają geometrię dla różnych poziomów gruntu, przypadek 45°, oś tylnej kamery, projekcję siatki, klasy i niepoprawne dane. CI wykonuje również Android Lint i kompilację APK. Wymagana osobna weryfikacja aparatu, czujników, zdjęć, eksportu i pomiarów na fizycznym S22+.
+
+Ręczne uruchomienie workflow wykonuje też test interfejsu na emulatorze Androida 15: zapis przykładowego pomiaru z syntetycznymi kątami, rozpoczęcie nowego, zachowanie odległości, wyczyszczenie numeru słupa i przejście przez instrukcję. Raport `ui-reports` zawiera zrzuty ekranów. Test emulatora nie potwierdza dokładności czujników fizycznego telefonu.
 
 Dokumentacja: [czujniki Android](https://developer.android.com/reference/android/hardware/SensorManager), [parametry kamery](https://developer.android.com/reference/android/hardware/Camera.Parameters), [AGP 8.7](https://developer.android.com/build/releases/agp-8-7-0-release-notes).

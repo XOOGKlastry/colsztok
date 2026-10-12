@@ -5,6 +5,7 @@ import android.content.*;
 import android.graphics.Bitmap;
 import android.hardware.SensorManager;
 import android.os.SystemClock;
+import android.provider.MediaStore;
 import android.view.*;
 import android.widget.*;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -24,9 +25,16 @@ public class FlowTest {
     private void call(Object a,String name)throws Exception{Method m=a.getClass().getDeclaredMethod(name);m.setAccessible(true);m.invoke(a);}
     private TextView text(View v,String needle){if(v instanceof TextView&&((TextView)v).getText().toString().equals(needle))return (TextView)v;if(v instanceof ViewGroup)for(int i=0;i<((ViewGroup)v).getChildCount();i++){TextView t=text(((ViewGroup)v).getChildAt(i),needle);if(t!=null)return t;}return null;}
     private void click(Activity a,String value){inst.runOnMainSync(()->{TextView t=text(a.getWindow().getDecorView(),value);assertNotNull(value,t);assertTrue(t.performClick());});inst.waitForIdleSync();}
-    private void screenshot(Activity a,String name)throws Exception{inst.waitForIdleSync();SystemClock.sleep(400);Bitmap b=inst.getUiAutomation().takeScreenshot();assertNotNull(b);File dir=new File(a.getExternalFilesDir(null),"screenshots");dir.mkdirs();try(FileOutputStream out=new FileOutputStream(new File(dir,name+".png"))){b.compress(Bitmap.CompressFormat.PNG,100,out);}b.recycle();}
+    @android.annotation.TargetApi(29)
+    private void screenshot(Activity a,String name)throws Exception{
+        inst.waitForIdleSync();SystemClock.sleep(400);Bitmap b=inst.getUiAutomation().takeScreenshot();assertNotNull(b);
+        // Gradle uninstalls the test application after completion. Shared media survives that cleanup.
+        ContentValues values=new ContentValues();values.put(MediaStore.Images.Media.DISPLAY_NAME,name+".png");values.put(MediaStore.Images.Media.MIME_TYPE,"image/png");values.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/Colsztok-tests");
+        android.net.Uri uri=a.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);assertNotNull(uri);
+        try(OutputStream out=a.getContentResolver().openOutputStream(uri)){assertNotNull(out);assertTrue(b.compress(Bitmap.CompressFormat.PNG,100,out));}b.recycle();
+    }
     @SuppressWarnings("unchecked") private void aim(MainActivity a,double degrees)throws Exception{
-        ArrayDeque<Double> samples=(ArrayDeque<Double>)get(a,"samples");samples.clear();for(int i=0;i<18;i++)samples.add(degrees);set(a,"lastSensor",SystemClock.elapsedRealtime());set(a,"roll",0d);set(a,"angle",degrees);set(a,"cameraReady",true);call(a,"captureAngle");
+        ArrayDeque<Double> samples=(ArrayDeque<Double>)get(a,"samples");samples.clear();for(int i=0;i<18;i++)samples.add(degrees);set(a,"lastSensor",SystemClock.elapsedRealtime());set(a,"roll",0d);set(a,"angle",degrees);set(a,"cameraReady",true);((TextView)get(a,"pitchValue")).setText(String.format(java.util.Locale.US,"Celowanie %+.1f°",degrees));((TextView)get(a,"rollValue")).setText("Na bok 0,0°");((TextView)get(a,"status")).setText("Przykładowy pomiar w teście interfejsu");call(a,"captureAngle");
     }
     @Test public void saveThenNewMeasurementAndGuide()throws Exception{
         Context context=inst.getTargetContext();context.getSharedPreferences("colsztok",Context.MODE_PRIVATE).edit().clear().putBoolean("guide_v2",true).commit();

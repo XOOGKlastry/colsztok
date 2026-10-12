@@ -1,4 +1,12 @@
-Colsztok — pomiar wysokości latarni dla Androida 8+ (w tym Samsung Galaxy S22+).
+Colsztok 1.1.0 — pomiar wysokości latarni dla Androida 8+ (w tym Samsung Galaxy S22+).
+
+Nowości:
+
+- Ilustrowana instrukcja „Jak mierzyć?”: celowanie w podstawę, obrót ku oprawie, przechył boczny i zapis.
+- Czytelniejsze etapy „Podstawa → Oprawa → Zapis”, większy wynik, podpisane pola i osobna poziomica przechyłu.
+- „Nowy pomiar” czyści bieżący pomiar i numer słupa, zachowuje odległość. Przy niezapisanym pomiarze pyta o rozpoczęcie od nowa.
+- Po zapisaniu wynik pozostaje widoczny, a licznik pamięci od razu się aktualizuje.
+- Mniej zbędnych przeliczeń układu podglądu aparatu.
 
 Pobierz **Colsztok.apk** i otwórz plik na telefonie. Android poprosi o zgodę na instalację z przeglądarki lub menedżera plików. Aplikacja wymaga dostępu do aparatu. Nie wymaga konta ani internetu.
 
